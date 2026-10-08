@@ -13,7 +13,8 @@ Deploy aus `metadata/`.
 2. Tabelle unter `tables:` ergänzen. Pflichtfelder: `name` (snake_case), `keys`, bei SQL zusätzlich
    `source_object` (`schema.tabelle`). Ladeart `load.type: full` (Standard) oder `incremental`
    (Lernpfad). Für Silver `scd_type` 1 oder 2, optional `track_history_columns`, `transforms`
-   (`clean_string`, `normalize_email`, `parse_date_multi`) und `expectations` (`drop|warn|fail`).
+   (`clean_string`, `normalize_email`, `parse_date_multi`, `lower_clean`) und `expectations`
+   (`drop|warn|fail`).
    Keys nicht transformieren.
 3. Neue Transformationsfunktion nötig? In `src/dbxpoc_common` (`text.py` + `transforms.py` +
    `REGISTRY`), Test ergänzen, Version in `pyproject.toml` erhöhen und im JSON Schema in

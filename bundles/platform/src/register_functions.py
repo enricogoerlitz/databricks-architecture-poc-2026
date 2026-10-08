@@ -22,6 +22,7 @@ python_udfs = {
     "clean_string": ("s STRING", "STRING", "Trimmt und reduziert Mehrfach-Leerzeichen"),
     "normalize_email": ("s STRING", "STRING", "E-Mail in Kleinbuchstaben, ungültig -> NULL"),
     "parse_date_multi": ("s STRING", "DATE", "Datum aus ISO-, DE-, US- oder Kompaktformat"),
+    "lower_clean": ("s STRING", "STRING", "Wie clean_string, zusätzlich Kleinbuchstaben"),
 }
 
 for fn, (args, returns, doc) in python_udfs.items():

@@ -41,3 +41,9 @@ def parse_date_multi(value: str | None) -> date | None:
         except ValueError:
             continue
     return None
+
+
+def lower_clean(value: str | None) -> str | None:
+    """Wie :func:`clean_string`, zusätzlich in Kleinbuchstaben (z. B. für Status-/Kategorie-Codes)."""
+    cleaned = clean_string(value)
+    return cleaned.lower() if cleaned is not None else None

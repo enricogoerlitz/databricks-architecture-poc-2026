@@ -72,7 +72,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "column": { "type": "string" },
-                    "fn": { "enum": ["clean_string", "normalize_email", "parse_date_multi"] }
+                    "fn": { "enum": ["clean_string", "normalize_email", "parse_date_multi", "lower_clean"] }
                   }
                 }
               },
