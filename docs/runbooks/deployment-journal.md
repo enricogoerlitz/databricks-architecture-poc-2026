@@ -204,3 +204,33 @@ Dadurch starten `infra-deploy` und `bundles-deploy` automatisch für dev.
   Silver-Änderung. Die CI startet `gold_sales` beim Deploy deshalb einmal selbst.
 - **Engineers in tst/prd:** brauchen `EXECUTE` (zentrale Funktionen) und `READ_VOLUME`, sonst
   „does not have EXECUTE on Routine“.
+
+## 8. Abbau (Ende des Tages)
+
+Abgebaut wurden alle Workloads und die kostende Infra von dev und tst. Bootstrap und Account
+bleiben bestehen. Die Workflows `infra-deploy` und `bundles-deploy` sind deaktiviert
+(`gh workflow enable …` zum Reaktivieren). Seither gibt es das Skript
+`infra/scripts/teardown-stage.sh <env>`.
+
+**Gotchas beim Abbau:**
+- **Nie zwei Stages parallel abbauen:** Alle Stages teilen sich die Terraform-Arbeitsverzeichnisse
+  (Backend-Key per `init`). Parallele Läufe überschreiben sich gegenseitig, und Befehle landen in
+  der falschen Stage.
+- **Reihenfolge Grants ↔ Bindings:** Ohne explizite Abhängigkeit baut Terraform das
+  Catalog-Binding vor den Grants ab. Danach heißt es „Catalog … is not accessible in current
+  workspace“. Fix: `depends_on` von Grants, Schema und Volume auf die Bindings.
+  - **Rettung:** Bindings per CLI wiederherstellen
+    (`workspace-bindings update-bindings`), dann erneut abbauen.
+- **Ownership:** Objekte, die der Deploy- oder Infra-SP angelegt hat (Foreign Catalog, Connection,
+  Volume, Catalogs), kann man als Mensch, auch als Metastore-Admin, nicht direkt löschen.
+  Man darf aber den Owner ändern: `… update <name> --json '{"owner":"<ich>"}'`, dann löschen.
+- **Setup-Job-Objekte:** Connection und Foreign Catalog stehen weder im Bundle- noch im
+  Terraform-State. Sie müssen vor dem Abbau des letzten Workspaces gelöscht werden, sonst gibt es
+  keinen Workspace mehr, über den man die UC-API erreicht.
+- **System-Schemas:** Sie gehören dem geteilten Metastore. Deshalb nicht per `destroy`
+  deaktivieren, sondern nur aus dem State nehmen.
+- **NCC:** Lässt sich erst löschen, wenn kein Workspace mehr an ihr hängt. Deshalb aus dem State
+  nehmen und nach dem `azure`-Stack per
+  `databricks account network-connectivity delete-network-connectivity-configuration` löschen.
+- **`sources` vor `databricks` abgebaut:** Der `databricks`-Stack liest `sources` per Remote
+  State. Er nutzt jetzt `try()`, damit er auch danach noch zerstörbar ist.

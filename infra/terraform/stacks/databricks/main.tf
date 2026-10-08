@@ -23,9 +23,11 @@ data "terraform_remote_state" "sources" {
 }
 
 locals {
-  p   = data.terraform_remote_state.azure.outputs
-  src = data.terraform_remote_state.sources.outputs
-  env = var.env
+  p = data.terraform_remote_state.azure.outputs
+  # try(): Der Stack bleibt zerstörbar, auch wenn der sources-Stack schon abgebaut ist
+  src_storage = try(data.terraform_remote_state.sources.outputs.src_storage, null)
+  sql_server  = try(data.terraform_remote_state.sources.outputs.sql.server_id, null)
+  env         = var.env
 
   ws_keys = sort(keys(local.p.workspaces))
   ws_urls = [for k in local.ws_keys : local.p.workspaces[k].url]
@@ -45,13 +47,19 @@ locals {
   deploy_sp = var.deploy_sp_client_id
 
   # NCC-Private-Endpoint-Ziele (Serverless -> private Ressourcen)
-  ncc_targets = {
-    uc-dfs   = { resource_id = local.p.uc_storage.id, group_id = "dfs" }
-    uc-blob  = { resource_id = local.p.uc_storage.id, group_id = "blob" }
-    src-dfs  = { resource_id = local.src.src_storage.id, group_id = "dfs" }
-    src-blob = { resource_id = local.src.src_storage.id, group_id = "blob" }
-    sql      = { resource_id = local.src.sql.server_id, group_id = "sqlServer" }
-  }
+  ncc_targets = merge(
+    {
+      uc-dfs  = { resource_id = local.p.uc_storage.id, group_id = "dfs" }
+      uc-blob = { resource_id = local.p.uc_storage.id, group_id = "blob" }
+    },
+    local.src_storage == null ? {} : {
+      src-dfs  = { resource_id = local.src_storage.id, group_id = "dfs" }
+      src-blob = { resource_id = local.src_storage.id, group_id = "blob" }
+    },
+    local.sql_server == null ? {} : {
+      sql = { resource_id = local.sql_server, group_id = "sqlServer" }
+    },
+  )
 }
 
 # ---------------------------------------------------------------------------
@@ -202,7 +210,7 @@ resource "databricks_external_location" "layer" {
 resource "databricks_external_location" "landing" {
   provider           = databricks.ws1
   name               = "el_${local.env}_landing"
-  url                = "abfss://landing@${local.src.src_storage.dfs_host}/"
+  url                = "abfss://landing@${try(local.src_storage.dfs_host, "removed")}/"
   credential_name    = databricks_storage_credential.uc.name
   isolation_mode     = "ISOLATION_MODE_ISOLATED"
   force_destroy      = true
@@ -273,6 +281,7 @@ resource "databricks_workspace_binding" "catalog_ws2" {
 # Landing-Volume (Zero-Copy auf den Source Storage)
 resource "databricks_schema" "landing" {
   provider      = databricks.ws1
+  depends_on    = [databricks_workspace_binding.catalog_ws1]
   catalog_name  = databricks_catalog.layer["bronze"].name
   name          = "landing"
   comment       = "External Volumes auf Quell-Storage (Zero-Copy)"
@@ -281,6 +290,7 @@ resource "databricks_schema" "landing" {
 
 resource "databricks_volume" "landing" {
   provider         = databricks.ws1
+  depends_on       = [databricks_workspace_binding.catalog_ws1, databricks_workspace_binding.location]
   catalog_name     = databricks_catalog.layer["bronze"].name
   schema_name      = databricks_schema.landing.name
   name             = "files"
@@ -299,10 +309,11 @@ data "databricks_current_metastore" "this" {
 
 # Deploy-SP besitzt die Workloads der Stage.
 resource "databricks_grants" "catalog" {
-  provider   = databricks.ws1
-  for_each   = databricks_catalog.layer
-  catalog    = each.value.name
-  depends_on = [databricks_mws_permission_assignment.role]
+  provider = databricks.ws1
+  for_each = databricks_catalog.layer
+  catalog  = each.value.name
+  # Bindings erst NACH den Grants abbauen (sonst "Catalog … is not accessible in current workspace")
+  depends_on = [databricks_mws_permission_assignment.role, databricks_workspace_binding.catalog_ws1, databricks_workspace_binding.catalog_ws2]
 
   grant {
     principal  = local.deploy_sp
@@ -329,6 +340,7 @@ resource "databricks_grants" "catalog" {
 resource "databricks_grants" "landing_location" {
   provider          = databricks.ws1
   external_location = databricks_external_location.landing.name
+  depends_on        = [databricks_workspace_binding.location]
   grant {
     principal  = local.deploy_sp
     privileges = ["READ_FILES", "WRITE_FILES"]
