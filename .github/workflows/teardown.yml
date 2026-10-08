@@ -68,9 +68,12 @@ jobs:
           az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
           url=$(az databricks workspace show -g rg-${PREFIX}-${ENV}-weu -n dbw-${PREFIX}-${ENV}-weu-01 --query workspaceUrl -o tsv)
           export DATABRICKS_HOST="https://$url"
-          for b in ingestion domain_sales platform; do
+          for b in domain_sales ingestion platform; do
             (cd bundles/$b && databricks bundle destroy -t $ENV --auto-approve)
           done
+          # Vom Setup-Job angelegt (weder Bundle- noch Terraform-State)
+          databricks catalogs delete ${ENV}_src_salesdb --force || true
+          databricks connections delete conn_${ENV}_salesdb || true
       - name: Login als Infra-SP
         if: inputs.scope == 'all'
         uses: azure/login@v2
@@ -83,5 +86,10 @@ jobs:
         run: |
           for stack in databricks sources azure; do
             make -s tf-init ENV=$ENV STACK=$stack >/dev/null
+            if [ "$stack" = databricks ]; then
+              # System-Schemas gehören dem geteilten Metastore: nur aus dem State nehmen
+              for r in $(terraform -chdir=infra/terraform/stacks/databricks state list | grep databricks_system_schema); do
+                terraform -chdir=infra/terraform/stacks/databricks state rm "$r"; done
+            fi
             terraform -chdir=infra/terraform/stacks/$stack destroy -input=false -auto-approve -no-color | tail -3
           done

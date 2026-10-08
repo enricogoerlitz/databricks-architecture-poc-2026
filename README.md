@@ -11,6 +11,7 @@ Enterprise-PoC für **Azure Databricks**:
 - Architektur und Entscheidungen: [docs/architecture/solution-design.md](docs/architecture/solution-design.md)
 - Einstieg für Menschen und Agents: [AGENTS.md](AGENTS.md)
 - Aufbau-Protokoll mit Gotchas: [docs/runbooks/deployment-journal.md](docs/runbooks/deployment-journal.md)
+- Aktueller Stand und Wiederaufbau: [docs/initializing/02-übergabe-v1.md](docs/initializing/02-übergabe-v1.md)
 
 ```bash
 mise install && uv sync && make check

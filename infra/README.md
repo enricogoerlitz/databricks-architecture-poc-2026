@@ -11,7 +11,7 @@ Terraform und Hilfsskripte für die Plattform. Regeln für Agents: [AGENTS.md](A
 | `terraform/stacks/databricks/` | NCC + Private-Endpoint-Regeln, Storage Credential, External Locations, Catalogs + Bindings, Grants, Secret Scope `kv`, SQL Warehouse | CI |
 | `terraform/modules/` | `workspace`, `private_endpoint` | — |
 | `terraform/envs/backend.hcl` | gemeinsamer Backend-Teil; Key je Stage/Stack per `-backend-config` | — |
-| `scripts/` | `approve-private-endpoints.sh` (NCC-PE-Freigabe) | Terraform `local-exec` |
+| `scripts/` | `approve-private-endpoints.sh` (NCC-PE-Freigabe), `teardown-stage.sh <env>` (lokaler Abbau einer Stage, Stages nacheinander) | Terraform `local-exec` / Mensch |
 
 **Reihenfolge je Stage:** `azure` → `sources` → `databricks`. Abhängigkeiten laufen über
 `terraform_remote_state`. Stage-Werte sind Variablen-Maps in den Stacks. Gesetzt wird nur
