@@ -1,0 +1,6 @@
+# Default-Owner für alles
+* @enricogoerlitz
+
+# Infrastruktur und Pipelines verlangen ein Review des Plattform-Owners
+/infra/ @enricogoerlitz
+/.github/ @enricogoerlitz

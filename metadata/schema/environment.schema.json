@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage-spezifische Werte",
+  "type": "object",
+  "required": ["env", "catalogs", "schedules", "jobs"],
+  "additionalProperties": false,
+  "properties": {
+    "env": { "enum": ["dev", "tst", "prd"] },
+    "catalogs": {
+      "type": "object",
+      "required": ["bronze", "silver", "gold", "platform"],
+      "additionalProperties": { "type": "string" }
+    },
+    "schedules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["cron", "timezone", "pause_status"],
+        "additionalProperties": false,
+        "properties": {
+          "cron": { "type": "string" },
+          "timezone": { "type": "string" },
+          "pause_status": { "enum": ["PAUSED", "UNPAUSED"] }
+        }
+      }
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "performance_target": { "enum": ["STANDARD", "PERFORMANCE_OPTIMIZED"] } }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+resources:
+  jobs:
+    seed_sources:
+      name: seed_sources
+      description: >
+        Simuliert das Quell-Team: legt Tabellen + leicht "messy" Dummy-Daten in der Azure SQL an,
+        legt den Reader-User für Databricks an und schreibt CSV-Dateien in den Landing-Storage.
+        round=1 Erstbefüllung (nur wenn leer), round=2 Änderungen für SCD2-Demo.
+      tags:
+        project: dbxpoc
+        env: ${var.env}
+      performance_target: STANDARD
+      parameters:
+        - name: round
+          default: "1"
+      tasks:
+        - task_key: seed
+          notebook_task:
+            notebook_path: ../src/seed_sources.py
+            base_parameters:
+              bronze_catalog: ${var.env}_bronze
+
+    platform_setup:
+      name: platform_setup
+      description: Federation (Connection + Foreign Catalog), UC Functions und Ops-Views anlegen
+      tags:
+        project: dbxpoc
+        env: ${var.env}
+      performance_target: STANDARD
+      tasks:
+        - task_key: federation
+          notebook_task:
+            notebook_path: ../src/setup_federation.py
+            base_parameters:
+              env: ${var.env}
+              database: sqldb-salesdb
+        - task_key: functions
+          notebook_task:
+            notebook_path: ../src/register_functions.py
+            base_parameters:
+              schema: ${resources.schemas.functions.catalog_name}.${resources.schemas.functions.name}
+              wheel: /Volumes/${var.env}_platform/libs/wheels/dbxpoc_common-${var.lib_version}-py3-none-any.whl
+              lib_version: ${var.lib_version}
+        - task_key: ops_views
+          notebook_task:
+            notebook_path: ../src/ops_views.py
+            base_parameters:
+              schema: ${resources.schemas.ops.catalog_name}.${resources.schemas.ops.name}
+              env: ${var.env}

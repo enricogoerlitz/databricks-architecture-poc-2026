@@ -1,0 +1,69 @@
+# Bundle "platform": gemeinsame Bausteine je Stage
+#   - Schemas in <env>_platform (meta, libs, functions, ops) + Volume für Wheels
+#   - Setup-Job: UC Connection + Foreign Catalog (Federation), UC Functions, Ops-Views
+#   - Seed-Job: simuliert das Quell-Team (Dummy-Daten in SQL + Landing-Dateien)
+bundle:
+  name: dbxpoc_platform
+  databricks_cli_version: ">= 1.20.0"
+
+include:
+  - resources/*.yml
+
+variables:
+  env:
+    description: Stage (dev | tst | prd); bestimmt Catalog-Präfixe
+    default: dev
+  lib_version:
+    description: Version des Wheels dbxpoc_common (aus src/dbxpoc_common/pyproject.toml)
+    default: 0.1.0
+  deploy_sp:
+    description: Application-ID des Deploy-SP der Stage (CI setzt BUNDLE_VAR_deploy_sp)
+    default: ""
+  git_sha:
+    default: local
+
+# Host kommt aus DATABRICKS_HOST bzw. dem CLI-Profil – keine Workspace-URLs im Repo.
+targets:
+  personal:
+    # Persönliche Entwicklung im dev-Workspace: Präfix "[dev <user>]", Schedules pausiert
+    mode: development
+    default: true
+
+  dev:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: dev
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  tst:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: tst
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  prd:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: prd
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE

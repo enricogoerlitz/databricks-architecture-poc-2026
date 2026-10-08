@@ -1,0 +1,80 @@
+# Abbau einer Stage. Nur manuell, mit Bestätigung. Reihenfolge: Bundles -> databricks -> sources -> azure.
+# scope=workloads entfernt nur die Bundles (Infra bleibt, z. B. vor dem Lernpfad).
+name: teardown
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        type: choice
+        options: [dev, tst, prd]
+      scope:
+        type: choice
+        options: [workloads, all]
+        default: workloads
+      confirm:
+        description: Zur Bestätigung den Stage-Namen eintippen
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  teardown:
+    if: inputs.confirm == inputs.env
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    env:
+      ENV: ${{ inputs.env }}
+      PREFIX: ${{ vars.PREFIX }}
+      DATABRICKS_AUTH_TYPE: azure-cli
+      BUNDLE_VAR_deploy_sp: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_AZUREAD: "true"
+      TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+      # CI-SPs haben keine Graph-Rechte: IDs kommen vorab aufgelöst als Secrets (Bootstrap)
+      TF_VAR_deploy_sp_client_id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+      TF_VAR_azure_databricks_sp_object_id: ${{ secrets.AZURE_DATABRICKS_SP_OBJECT_ID }}
+      TF_VAR_kv_admin_object_ids: ${{ secrets.KV_ADMIN_OBJECT_IDS }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.23"
+      - uses: databricks/setup-cli@main
+        with:
+          version: "1.20.0"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Bundles entfernen
+        run: |
+          uv sync --locked
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          url=$(az databricks workspace show -g rg-${PREFIX}-${ENV}-weu -n dbw-${PREFIX}-${ENV}-weu-01 --query workspaceUrl -o tsv)
+          export DATABRICKS_HOST="https://$url"
+          for b in ingestion domain_sales platform; do
+            (cd bundles/$b && databricks bundle destroy -t $ENV --auto-approve)
+          done
+      - name: Login als Infra-SP
+        if: inputs.scope == 'all'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Terraform destroy (databricks -> sources -> azure)
+        if: inputs.scope == 'all'
+        run: |
+          for stack in databricks sources azure; do
+            make -s tf-init ENV=$ENV STACK=$stack >/dev/null
+            terraform -chdir=infra/terraform/stacks/$stack destroy -input=false -auto-approve -no-color | tail -3
+          done

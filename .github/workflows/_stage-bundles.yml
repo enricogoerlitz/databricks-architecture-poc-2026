@@ -1,0 +1,81 @@
+# Wiederverwendbar: Bundles einer Stage deployen (platform -> ingestion -> Läufe -> domain_sales).
+name: _stage-bundles
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        type: string
+        required: true
+      run_smoke:
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    concurrency:
+      group: bundles-${{ inputs.env }}
+      cancel-in-progress: false
+    env:
+      ENV: ${{ inputs.env }}
+      PREFIX: ${{ vars.PREFIX }}
+      DATABRICKS_AUTH_TYPE: azure-cli
+      BUNDLE_VAR_deploy_sp: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+      BUNDLE_VAR_git_sha: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.23"
+      - uses: databricks/setup-cli@main
+        with:
+          version: "1.20.0"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Workspace-URL und Wheel-Version ermitteln
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          url=$(az databricks workspace show -g rg-${PREFIX}-${ENV}-weu -n dbw-${PREFIX}-${ENV}-weu-01 --query workspaceUrl -o tsv)
+          echo "DATABRICKS_HOST=https://$url" >> "$GITHUB_ENV"
+          echo "BUNDLE_VAR_lib_version=$(sed -n 's/^version = "\(.*\)"/\1/p' src/dbxpoc_common/pyproject.toml)" >> "$GITHUB_ENV"
+      - run: uv sync --locked
+      - name: Wheel bauen
+        run: uv build --wheel src/dbxpoc_common -o dist
+      - name: platform
+        working-directory: bundles/platform
+        run: |
+          databricks bundle deploy -t $ENV
+          databricks fs cp ../../dist/dbxpoc_common-${BUNDLE_VAR_lib_version}-py3-none-any.whl \
+            dbfs:/Volumes/${ENV}_platform/libs/wheels/ --overwrite
+          databricks bundle run -t $ENV seed_sources --params round=1
+          databricks bundle run -t $ENV platform_setup
+          # Foreign Catalog nur im Workspace der Stage sichtbar: ISOLATED + explizites Binding
+          ws_id=$(sed -E 's#https://adb-([0-9]+)\..*#\1#' <<<"$DATABRICKS_HOST")
+          databricks catalogs update ${ENV}_src_salesdb --isolation-mode ISOLATED -o json > /dev/null
+          databricks workspace-bindings update-bindings catalog ${ENV}_src_salesdb \
+            --json "{\"add\": [{\"workspace_id\": $ws_id, \"binding_type\": \"BINDING_TYPE_READ_WRITE\"}]}" -o json > /dev/null
+      - name: ingestion
+        working-directory: bundles/ingestion
+        run: |
+          databricks bundle deploy -t $ENV
+          databricks bundle run -t $ENV publish_metadata
+      - name: Erstbefüllung / Smoke-Test (Source -> Bronze -> Silver)
+        # Beim allerersten Deploy Pflicht: Der Table Update Trigger von gold_sales verlangt, dass
+        # die Silver-Tabellen existieren.
+        if: inputs.run_smoke
+        working-directory: bundles/ingestion
+        run: |
+          databricks bundle run -t $ENV ingest_salesdb
+          databricks bundle run -t $ENV ingest_crm_files
+      - name: domain_sales
+        working-directory: bundles/domain_sales
+        run: databricks bundle deploy -t $ENV

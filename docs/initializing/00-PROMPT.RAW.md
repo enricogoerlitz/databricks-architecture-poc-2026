@@ -28,4 +28,3 @@ Folgende (grob-) Anfordeurngen habe ich:
 - ich will alles in einem Repo verwalten; also IaC, databricks definitionen, databricks notebooks etc; also git integration in ordnern, sodass deployment sauber laufen kann; aber ich will auch wissen, ob das best practice wäre. mono-repo ist halt leichter zu managen
 
 Also wie du siehst, geht es mir wirklich sehr zentral um die verwaltung, Deployment Pipelines, Best Practices und co, weniger um komplexe Daten. Bronze, Silver und Gold können sehr simpel gestrickt sein.
-

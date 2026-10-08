@@ -1,0 +1,45 @@
+# Quelle: Azure SQL (simuliertes ERP). Keine Secrets – nur Referenzen.
+source:
+  name: salesdb
+  type: sqlserver
+  ingestion_mode: full_load          # full_load (Federation) | query_based | cdc_gateway (Lernpfad)
+  connection: conn_${env}_salesdb    # UC Connection (legt der Setup-Job an)
+  foreign_catalog: ${env}_src_salesdb
+  source_database: sqldb-salesdb
+  bronze_schema: salesdb
+  silver_schema: salesdb
+  schedule: hourly                   # Referenz auf environments/<env>.yml
+  tags:
+    domain: sales
+
+tables:
+  - name: customers
+    source_object: dbo.customers
+    load:
+      type: full                     # Snapshot je Lauf -> Silver per AUTO CDC FROM SNAPSHOT
+    keys: [customer_id]
+    silver:
+      scd_type: 2
+      track_history_columns: [email, city, segment]
+      transforms:
+        - { column: name, fn: clean_string }
+        - { column: email, fn: normalize_email }
+        - { column: city, fn: clean_string }
+        - { column: segment, fn: clean_string }
+      expectations:
+        valid_id: { expr: "customer_id IS NOT NULL", action: drop }
+        valid_email: { expr: "email IS NOT NULL", action: warn }
+
+  - name: orders
+    source_object: dbo.orders
+    load:
+      type: full                     # Lernpfad A2: type: incremental + cursor_column: updated_at
+    keys: [order_id]
+    silver:
+      scd_type: 1
+      transforms:
+        - { column: order_date, fn: parse_date_multi }
+        - { column: status, fn: clean_string }
+      expectations:
+        positive_amount: { expr: "amount >= 0", action: drop }
+        known_customer: { expr: "customer_id IS NOT NULL", action: warn }

@@ -1,0 +1,69 @@
+# Bundle "domain_sales": Custom Gold der Domäne Sales (bewusst simpel).
+# Läuft, sobald sich die Silver-Tabellen ändern (Table Update Trigger) – entkoppelt von der
+# Ingestion, ohne harte Job-zu-Job-Abhängigkeit über Bundle-Grenzen.
+bundle:
+  name: dbxpoc_domain_sales
+  databricks_cli_version: ">= 1.20.0"
+
+include:
+  - resources/*.yml
+
+variables:
+  env:
+    default: dev
+  deploy_sp:
+    default: ""
+  warehouse_id:
+    description: Serverless SQL Warehouse der Stage (von Terraform angelegt)
+    lookup:
+      warehouse: wh-dev-serverless
+
+targets:
+  personal:
+    mode: development
+    default: true
+
+  dev:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: dev
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  tst:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: tst
+      warehouse_id:
+        lookup:
+          warehouse: wh-tst-serverless
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  prd:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: prd
+      warehouse_id:
+        lookup:
+          warehouse: wh-prd-serverless
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE

@@ -1,0 +1,61 @@
+# Wiederverwendbar: Terraform-Stacks einer Stage anwenden (azure -> sources -> databricks).
+name: _stage-infra
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}   # Gate (tst/prd: Approval) + OIDC-Subject environment:<env>
+    concurrency:
+      group: infra-${{ inputs.env }}
+      cancel-in-progress: false
+    env:
+      ENV: ${{ inputs.env }}
+      PREFIX: ${{ vars.PREFIX }}
+      SUFFIX: ${{ vars.SUFFIX }}
+      TF_IN_AUTOMATION: "1"
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+      # CI-SPs haben keine Graph-Rechte: IDs kommen vorab aufgelöst als Secrets (Bootstrap)
+      TF_VAR_deploy_sp_client_id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+      TF_VAR_azure_databricks_sp_object_id: ${{ secrets.AZURE_DATABRICKS_SP_OBJECT_ID }}
+      TF_VAR_kv_admin_object_ids: ${{ secrets.KV_ADMIN_OBJECT_IDS }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+      - name: terraform (azure -> sources -> databricks)
+        run: |
+          set -euo pipefail
+          for stack in azure sources databricks; do
+            echo "::group::$stack plan"
+            make -s tf-init ENV=$ENV STACK=$stack >/dev/null
+            # Öffentliches Repo: nur die Zusammenfassung loggen, nicht den ganzen Plan
+            terraform -chdir=infra/terraform/stacks/$stack plan -input=false -no-color -out=tfplan > plan-$stack.txt \
+              || { grep -A20 -E "^(│ )?Error" plan-$stack.txt; exit 1; }
+            grep -E "^(Plan:|No changes)" plan-$stack.txt | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+            echo "::group::$stack apply"
+            terraform -chdir=infra/terraform/stacks/$stack apply -input=false -no-color tfplan
+            echo "::endgroup::"
+          done

@@ -1,0 +1,57 @@
+# Deterministische Checks vor jedem Commit: `uv run pre-commit install` (einmalig).
+# Agents und Menschen führen vor dem Commit aus: `uv run pre-commit run --all-files`.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]
+        stages: [pre-commit]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: terraform fmt
+        entry: terraform fmt -check -recursive infra/terraform
+        language: system
+        pass_filenames: false
+        files: \.tf$
+      - id: tflint
+        name: tflint
+        # tflint aus PATH oder über mise (mise.toml pinnt die Version)
+        entry: bash -c 'cd infra/terraform && T=$(command -v tflint || echo "mise exec -- tflint"); $T --recursive --config "$(pwd)/.tflint.hcl"'
+        language: system
+        pass_filenames: false
+        files: \.tf$
+      - id: metadata
+        name: metadata (JSON Schema + Generator)
+        entry: uv run python -m tools.metadata validate
+        language: system
+        pass_filenames: false
+        files: ^(metadata/|bundles/ingestion/resources/)
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
+        files: \.(py|yml|json)$

@@ -1,0 +1,26 @@
+resources:
+  schemas:
+    meta:
+      catalog_name: ${var.env}_platform
+      name: meta
+      comment: Laufzeit-Spiegel der Metadaten (Source of Truth ist metadata/ im Repo)
+    libs:
+      catalog_name: ${var.env}_platform
+      name: libs
+      comment: Python-Wheels (dbxpoc_common) je Version
+    functions:
+      catalog_name: ${var.env}_platform
+      name: functions
+      comment: Wiederverwendbare UC Functions (SQL + Python UDFs)
+    ops:
+      catalog_name: ${var.env}_platform
+      name: ops
+      comment: Monitoring-Views auf System Tables
+
+  volumes:
+    wheels:
+      catalog_name: ${resources.schemas.libs.catalog_name}
+      schema_name: ${resources.schemas.libs.name}
+      name: wheels
+      volume_type: MANAGED
+      comment: Gebaute Wheels; Pfad /Volumes/<env>_platform/libs/wheels/<wheel>
