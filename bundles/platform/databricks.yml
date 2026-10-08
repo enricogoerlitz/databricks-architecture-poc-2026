@@ -15,7 +15,7 @@ variables:
     default: dev
   lib_version:
     description: Version des Wheels dbxpoc_common (aus src/dbxpoc_common/pyproject.toml)
-    default: 0.1.0
+    default: 0.2.0
   deploy_sp:
     description: Application-ID des Deploy-SP der Stage (CI setzt BUNDLE_VAR_deploy_sp)
     default: ""

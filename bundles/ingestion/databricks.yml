@@ -15,7 +15,7 @@ variables:
     default: dev
   lib_version:
     description: Version des Wheels dbxpoc_common
-    default: 0.1.0
+    default: 0.2.0
   deploy_sp:
     default: ""
   git_sha:

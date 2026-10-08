@@ -33,6 +33,11 @@ def normalize_email(col: str | Column) -> Column:
     return F.when(c.rlike(r"^[^@]+@[^@]+$"), c).otherwise(F.lit(None))
 
 
+def lower_clean(col: str | Column) -> Column:
+    F = _f()  # noqa: N806
+    return F.lower(clean_string(col))
+
+
 def parse_date_multi(col: str | Column) -> Column:
     F = _f()  # noqa: N806
     c = clean_string(col)
@@ -44,4 +49,5 @@ REGISTRY = {
     "clean_string": clean_string,
     "normalize_email": normalize_email,
     "parse_date_multi": parse_date_multi,
+    "lower_clean": lower_clean,
 }

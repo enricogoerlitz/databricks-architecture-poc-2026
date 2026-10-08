@@ -25,7 +25,7 @@ tables:
       transforms:
         - { column: product_code, fn: clean_string }
         - { column: product_name, fn: clean_string }
-        - { column: category, fn: clean_string }
+        - { column: category, fn: lower_clean }
         - { column: valid_from, fn: parse_date_multi }
       expectations:
         code_present: { expr: "product_code IS NOT NULL", action: drop }

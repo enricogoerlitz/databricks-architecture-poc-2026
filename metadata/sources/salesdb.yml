@@ -39,7 +39,7 @@ tables:
       scd_type: 1
       transforms:
         - { column: order_date, fn: parse_date_multi }
-        - { column: status, fn: clean_string }
+        - { column: status, fn: lower_clean }
       expectations:
         positive_amount: { expr: "amount >= 0", action: drop }
         known_customer: { expr: "customer_id IS NOT NULL", action: warn }

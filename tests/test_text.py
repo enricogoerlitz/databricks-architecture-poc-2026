@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from dbxpoc_common.text import clean_string, normalize_email, parse_date_multi
+from dbxpoc_common.text import clean_string, lower_clean, normalize_email, parse_date_multi
 
 
 @pytest.mark.parametrize(
@@ -39,3 +39,8 @@ def test_normalize_email(raw, expected):
 )
 def test_parse_date_multi(raw, expected):
     assert parse_date_multi(raw) == expected
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(" SHIPPED ", "shipped"), ("  Open", "open"), ("", None), (None, None)])
+def test_lower_clean(raw, expected):
+    assert lower_clean(raw) == expected
