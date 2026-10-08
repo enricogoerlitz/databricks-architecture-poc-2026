@@ -313,7 +313,7 @@ resource "databricks_grants" "catalog" {
     for_each = var.group_grants_enabled ? [1] : []
     content {
       principal  = "sg-${var.prefix}-${local.env}-engineers"
-      privileges = local.env == "dev" ? ["ALL_PRIVILEGES"] : ["USE_CATALOG", "USE_SCHEMA", "SELECT", "BROWSE"]
+      privileges = local.env == "dev" ? ["ALL_PRIVILEGES"] : ["USE_CATALOG", "USE_SCHEMA", "SELECT", "BROWSE", "EXECUTE", "READ_VOLUME"]
     }
   }
 
