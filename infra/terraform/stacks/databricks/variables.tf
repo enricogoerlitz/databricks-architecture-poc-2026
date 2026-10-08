@@ -25,3 +25,8 @@ variable "group_grants_enabled" {
   type        = bool
   default     = true
 }
+
+variable "infra_sp_client_id" {
+  description = "Client-ID von sp-<prefix>-<env>-infra (wird Workspace-Admin)."
+  type        = string
+}
