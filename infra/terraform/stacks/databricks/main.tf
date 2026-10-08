@@ -337,12 +337,20 @@ resource "databricks_grants" "landing_location" {
 
 # Connection + Foreign Catalog legt der Setup-Job (Deploy-SP) per SQL an, damit das Passwort
 # nie im Terraform-State landet.
-resource "databricks_grants" "metastore" {
-  provider  = databricks.ws1
-  metastore = data.databricks_current_metastore.this.id
-  grant {
-    principal  = local.deploy_sp
-    privileges = ["CREATE_CONNECTION", "CREATE_CATALOG"]
+# WICHTIG: Metastore und system-Catalog sind stage- und team-übergreifend (geteilter Metastore).
+# Deshalb nicht-autoritativ (databricks_grant je Principal) statt databricks_grants – sonst
+# überschreibt jede Stage die Grants der anderen (und der Kollegen).
+resource "databricks_grant" "metastore" {
+  provider   = databricks.ws1
+  metastore  = data.databricks_current_metastore.this.id
+  principal  = local.deploy_sp
+  privileges = ["CREATE_CONNECTION", "CREATE_CATALOG"]
+}
+
+removed {
+  from = databricks_grants.metastore
+  lifecycle {
+    destroy = false
   }
 }
 
@@ -427,42 +435,34 @@ resource "databricks_system_schema" "this" {
   depends_on = [databricks_metastore_assignment.this]
 }
 
-resource "databricks_grants" "system_catalog" {
-  provider = databricks.ws1
-  count    = local.env == "dev" ? 1 : 0
-  catalog  = "system"
-  grant {
-    principal  = "${var.prefix}-deploy-sps"
-    privileges = ["USE_CATALOG"]
-  }
+resource "databricks_grant" "system_catalog" {
+  provider   = databricks.ws1
+  count      = local.env == "dev" ? 1 : 0
+  catalog    = "system"
+  principal  = "${var.prefix}-deploy-sps"
+  privileges = ["USE_CATALOG"]
   depends_on = [databricks_metastore_assignment.this]
 }
 
-resource "databricks_grants" "system_schema" {
-  provider = databricks.ws1
-  for_each = local.env == "dev" ? toset(["billing", "lakeflow", "access"]) : toset([])
-  schema   = "system.${each.key}"
-  grant {
-    principal  = "${var.prefix}-deploy-sps"
-    privileges = ["USE_SCHEMA", "SELECT"]
-  }
+resource "databricks_grant" "system_schema" {
+  provider   = databricks.ws1
+  for_each   = local.env == "dev" ? toset(["billing", "lakeflow", "access"]) : toset([])
+  schema     = "system.${each.key}"
+  principal  = "${var.prefix}-deploy-sps"
+  privileges = ["USE_SCHEMA", "SELECT"]
   depends_on = [databricks_system_schema.this]
 }
 
-# ---------------------------------------------------------------------------
-# Wer darf Jobs mit run_as = Deploy-SP anlegen? Die CI (der SP selbst) und die Plattform-Admins
-# (Break-Glass/lokales Deploy). Ohne diese Rolle: "must have servicePrincipal.user role".
-# ---------------------------------------------------------------------------
-resource "databricks_access_control_rule_set" "deploy_sp" {
-  provider = databricks.account
-  name     = "accounts/${var.databricks_account_id}/servicePrincipals/${local.deploy_sp}/ruleSets/default"
-
-  grant_rules {
-    principals = ["groups/${var.prefix}-metastore-admins"]
-    role       = "roles/servicePrincipal.user"
+removed {
+  from = databricks_grants.system_catalog
+  lifecycle {
+    destroy = false
   }
-  grant_rules {
-    principals = ["groups/${var.prefix}-metastore-admins"]
-    role       = "roles/servicePrincipal.manager"
+}
+
+removed {
+  from = databricks_grants.system_schema
+  lifecycle {
+    destroy = false
   }
 }

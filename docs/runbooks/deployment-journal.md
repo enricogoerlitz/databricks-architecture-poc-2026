@@ -193,3 +193,14 @@ Dadurch starten `infra-deploy` und `bundles-deploy` automatisch für dev.
   Zielbild mit einer Subscription je Stage ist das automatisch stage-begrenzt.
 - **Freigaben automatisieren:** `gh api -X POST repos/<o>/<r>/actions/runs/<id>/pending_deployments -F "environment_ids[]=<id>" -f state=approved`
   (Self-Review ist im Environment erlaubt).
+- **Autoritative Grants auf geteilten Objekten:** `databricks_grants` setzt die **komplette**
+  Grant-Liste. Der Metastore-Grant des tst-Stacks hat den des dev-Deploy-SP entfernt
+  („does not have CREATE CATALOG on Metastore“). Auf dem `system`-Catalog hätte er sogar Grants
+  von Kollegen im geteilten Metastore gelöscht. Regel: Für metastore-weite oder fremde Objekte
+  `databricks_grant` (nicht-autoritativ, je Principal) verwenden. `databricks_grants` nur für
+  Objekte, die dem Stack exklusiv gehören (eigene Catalogs). Die Umstellung erfolgt per
+  `removed { lifecycle { destroy = false } }`, damit nichts revoked wird.
+- **Gold in neuer Stage leer:** Der Table Update Trigger feuert erst bei der *nächsten*
+  Silver-Änderung. Die CI startet `gold_sales` beim Deploy deshalb einmal selbst.
+- **Engineers in tst/prd:** brauchen `EXECUTE` (zentrale Funktionen) und `READ_VOLUME`, sonst
+  „does not have EXECUTE on Routine“.
