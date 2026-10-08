@@ -78,4 +78,7 @@ jobs:
           databricks bundle run -t $ENV ingest_crm_files
       - name: domain_sales
         working-directory: bundles/domain_sales
-        run: databricks bundle deploy -t $ENV
+        run: |
+          databricks bundle deploy -t $ENV
+          # Erstbefüllung: Der Table Update Trigger feuert erst bei der nächsten Silver-Änderung
+          if [ "${{ inputs.run_smoke }}" = "true" ]; then databricks bundle run -t $ENV gold_sales; fi
