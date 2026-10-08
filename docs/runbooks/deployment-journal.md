@@ -158,3 +158,24 @@ dauert ca. 10 Minuten (Workspaces). Es lief im ersten Versuch fehlerfrei durch.
 - **Beobachtung:** Im Performance-Modus `STANDARD` startet Serverless 4–6 Minuten verzögert. Das
   ist günstiger, aber Iterationen dauern länger. Zum Entwickeln kann man in
   `metadata/environments/dev.yml` `PERFORMANCE_OPTIMIZED` setzen.
+
+## 7. CI/CD (GitHub Actions)
+
+PR #1 → CI grün (ruff, pytest, terraform validate/tflint, gitleaks) → Squash-Merge auf `main`.
+Dadurch starten `infra-deploy` und `bundles-deploy` automatisch für dev.
+
+**Gotchas beim ersten CI-Lauf:**
+- **`No value for required variable`:** Das Makefile exportiert `TF_VAR_*` nur innerhalb von
+  `make`. Ruft der Workflow `terraform` direkt auf, müssen die Variablen im Workflow-`env` stehen.
+- **Owner-Wechsel nicht erlaubt:** „only workspace admins can change the owner of a job“. Die
+  Jobs und Pipelines waren lokal von einem Menschen angelegt worden, und der Deploy-SP ist
+  bewusst kein Workspace-Admin. Lösung (einmalig): Ownership per
+  `databricks permissions set jobs|pipelines <id> --json '{"access_control_list":[{"service_principal_name":"<sp>","permission_level":"IS_OWNER"}]}'`
+  übertragen.
+  - **Lehre:** Die erste Anlage in einer CI-Stage sollte immer durch die CI erfolgen. Lokal nur
+    `-t personal` verwenden.
+- **CI-SPs ohne Graph-Rechte:** `az ad sp list` und `data "azuread_*"` funktionieren in der CI
+  nicht. Die IDs kommen deshalb vom Bootstrap als Secrets (`AZURE_DATABRICKS_SP_OBJECT_ID`,
+  `KV_ADMIN_OBJECT_IDS`, `AZURE_CLIENT_ID_*`).
+- **Reihenfolge Infra vor Bundles:** Beide Workflows starten parallel. Bei einer neuen Stage
+  (tst/prd) muss die Infra-Freigabe vor der Bundles-Freigabe erteilt werden.
