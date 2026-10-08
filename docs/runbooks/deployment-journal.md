@@ -179,3 +179,7 @@ Dadurch starten `infra-deploy` und `bundles-deploy` automatisch für dev.
   `KV_ADMIN_OBJECT_IDS`, `AZURE_CLIENT_ID_*`).
 - **Reihenfolge Infra vor Bundles:** Beide Workflows starten parallel. Bei einer neuen Stage
   (tst/prd) muss die Infra-Freigabe vor der Bundles-Freigabe erteilt werden.
+- **Infra-SP kein Workspace-Mitglied:** „cannot read …: User not authorized“. Azure-Contributor
+  auf der RG macht einen SP in Workspaces mit Identity Federation **nicht** automatisch zum Admin.
+  Lösung: `databricks_mws_permission_assignment` (ADMIN) für den Infra-SP über den
+  Account-Provider. Alle Workspace-Ressourcen hängen über die Metastore-Zuweisung daran.

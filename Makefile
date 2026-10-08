@@ -70,6 +70,7 @@ tf-init: ## terraform init (ENV, STACK)
 # lokal werden sie per az (Graph) nachgeschlagen, falls nicht gesetzt.
 define tf_ids
 	export TF_VAR_deploy_sp_client_id=$${TF_VAR_deploy_sp_client_id:-$$($(MAKE) -s deploy-sp-id)}; \
+	export TF_VAR_infra_sp_client_id=$${TF_VAR_infra_sp_client_id:-$$(az ad sp list --display-name sp-$(PREFIX)-$(ENV)-infra --query '[0].appId' -o tsv)}; \
 	export TF_VAR_azure_databricks_sp_object_id=$${TF_VAR_azure_databricks_sp_object_id:-$$(az ad sp show --id 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d --query id -o tsv)}; \
 	export TF_VAR_kv_admin_object_ids=$${TF_VAR_kv_admin_object_ids:-$$(printf '["%s","%s"]' \
 	  "$$(az ad sp list --display-name sp-$(PREFIX)-$(ENV)-infra --query '[0].id' -o tsv)" \

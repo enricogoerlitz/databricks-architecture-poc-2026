@@ -76,6 +76,23 @@ resource "databricks_metastore_assignment" "this" {
   for_each     = toset([for id in local.ws_ids : tostring(id)])
   workspace_id = tonumber(each.key)
   metastore_id = local.metastore_id
+  # Alle Workspace-Ressourcen hängen hieran -> der Infra-SP ist vorher Workspace-Admin
+  depends_on = [databricks_mws_permission_assignment.infra]
+}
+
+# Der Infra-SP (diese Pipeline) wird explizit Workspace-Admin. Azure-Contributor allein reicht in
+# Workspaces mit Identity Federation nicht ("User not authorized").
+data "databricks_service_principal" "infra" {
+  provider       = databricks.account
+  application_id = var.infra_sp_client_id
+}
+
+resource "databricks_mws_permission_assignment" "infra" {
+  provider     = databricks.account
+  for_each     = toset([for id in local.ws_ids : tostring(id)])
+  workspace_id = tonumber(each.key)
+  principal_id = data.databricks_service_principal.infra.id
+  permissions  = ["ADMIN"]
 }
 
 # ---------------------------------------------------------------------------

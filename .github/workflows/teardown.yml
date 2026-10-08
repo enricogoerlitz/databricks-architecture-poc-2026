@@ -42,6 +42,7 @@ jobs:
       TF_VAR_tfstate_storage_account: ${{ vars.TF_STATE_SA }}
       # CI-SPs haben keine Graph-Rechte: IDs kommen vorab aufgelöst als Secrets (Bootstrap)
       TF_VAR_deploy_sp_client_id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
+      TF_VAR_infra_sp_client_id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
       TF_VAR_azure_databricks_sp_object_id: ${{ secrets.AZURE_DATABRICKS_SP_OBJECT_ID }}
       TF_VAR_kv_admin_object_ids: ${{ secrets.KV_ADMIN_OBJECT_IDS }}
     steps:
