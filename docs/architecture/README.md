@@ -3,6 +3,10 @@
 Systemüberblick, Datenmodelle und Diagramme. Kein Ersatz für die Specs — hier steht das Bleibende,
 dort das Vorhaben.
 
+**Vorhanden**
+
+- [`solution-design.md`](solution-design.md) — Solution Design des Databricks-PoC (Phase 1, Entwurf).
+
 **Sinnvolle Inhalte**
 
 - `system-context.md` — was das System ist, wer es nutzt, womit es spricht.

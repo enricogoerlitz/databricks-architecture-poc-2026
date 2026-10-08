@@ -1,0 +1,54 @@
+# Code/Workloads (Bundles): main -> dev (auto) -> tst (Approval); Tag v* -> prd (Approval).
+name: bundles-deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths: ["bundles/**", "src/**", "metadata/**", "pyproject.toml", "uv.lock", ".github/workflows/bundles-deploy.yml", ".github/workflows/_stage-bundles.yml"]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Stage
+        type: choice
+        options: [dev, tst, prd]
+      run_smoke:
+        description: Smoke-Test-Jobs ausführen
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  dev:
+    if: github.event_name == 'push' && github.ref_type == 'branch' || inputs.env == 'dev'
+    uses: ./.github/workflows/_stage-bundles.yml
+    with:
+      env: dev
+      run_smoke: ${{ inputs.run_smoke != false }}
+    secrets: inherit
+
+  tst:
+    needs: dev
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    uses: ./.github/workflows/_stage-bundles.yml
+    with: { env: tst }
+    secrets: inherit
+
+  tst-manual:
+    if: inputs.env == 'tst'
+    uses: ./.github/workflows/_stage-bundles.yml
+    with:
+      env: tst
+      run_smoke: ${{ inputs.run_smoke != false }}
+    secrets: inherit
+
+  prd:
+    if: github.ref_type == 'tag' || inputs.env == 'prd'
+    uses: ./.github/workflows/_stage-bundles.yml
+    with:
+      env: prd
+      run_smoke: ${{ inputs.run_smoke != false }}
+    secrets: inherit

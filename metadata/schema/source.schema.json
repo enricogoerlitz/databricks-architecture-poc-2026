@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/enricogoerlitz/databricks-architecture-poc-2026/metadata/source.schema.json",
+  "title": "Metadaten einer Quelle",
+  "type": "object",
+  "required": ["source", "tables"],
+  "additionalProperties": false,
+  "properties": {
+    "source": {
+      "type": "object",
+      "required": ["name", "type", "ingestion_mode", "bronze_schema", "silver_schema"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "type": { "enum": ["sqlserver", "files"] },
+        "ingestion_mode": { "enum": ["full_load", "query_based", "cdc_gateway", "autoloader"] },
+        "connection": { "type": "string" },
+        "foreign_catalog": { "type": "string" },
+        "source_database": { "type": "string" },
+        "location": { "type": "string" },
+        "format": { "enum": ["csv", "json", "parquet"] },
+        "options": { "type": "object", "additionalProperties": { "type": "string" } },
+        "bronze_schema": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "silver_schema": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "schedule": { "type": "string" },
+        "trigger": { "enum": ["file_arrival"] },
+        "tags": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "sqlserver" } } },
+          "then": { "required": ["connection", "foreign_catalog", "source_database"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "files" } } },
+          "then": { "required": ["location", "format"] }
+        }
+      ]
+    },
+    "tables": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "keys"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "source_object": { "type": "string", "pattern": "^[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$" },
+          "pattern": { "type": "string" },
+          "load": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "enum": ["full", "incremental"] },
+              "cursor_column": { "type": "string" }
+            }
+          },
+          "keys": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "silver": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scd_type": { "enum": [1, 2] },
+              "sequence_by": { "type": "string" },
+              "track_history_columns": { "type": "array", "items": { "type": "string" } },
+              "transforms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["column", "fn"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "column": { "type": "string" },
+                    "fn": { "enum": ["clean_string", "normalize_email", "parse_date_multi"] }
+                  }
+                }
+              },
+              "expectations": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["expr", "action"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "expr": { "type": "string" },
+                    "action": { "enum": ["drop", "warn", "fail"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

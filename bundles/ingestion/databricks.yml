@@ -1,0 +1,66 @@
+# Bundle "ingestion": metadata-driven Source → Bronze → Silver.
+# Die Ressourcen werden NICHT in YAML gepflegt, sondern aus metadata/ generiert
+# (Python for Bundles, resources/__init__.py -> resources/generator.py).
+bundle:
+  name: dbxpoc_ingestion
+  databricks_cli_version: ">= 1.20.0"
+
+python:
+  venv_path: ../../.venv
+  resources:
+    - "resources:load_resources"
+
+variables:
+  env:
+    default: dev
+  lib_version:
+    description: Version des Wheels dbxpoc_common
+    default: 0.1.0
+  deploy_sp:
+    default: ""
+  git_sha:
+    default: local
+
+targets:
+  personal:
+    mode: development
+    default: true
+
+  dev:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: dev
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  tst:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: tst
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE
+
+  prd:
+    mode: production
+    workspace:
+      # Home des Deploy-SP: geschützt, gemeinsamer Bundle-State für CI und Break-Glass-Deploy
+      root_path: /Workspace/Users/${var.deploy_sp}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env: prd
+    run_as:
+      service_principal_name: ${var.deploy_sp}
+    permissions:
+      - service_principal_name: ${var.deploy_sp}
+        level: CAN_MANAGE

@@ -1,0 +1,5 @@
+# Kopieren nach terraform.tfvars (gitignored) und ausfüllen.
+subscription_id            = "<subscription-id>"
+suffix                     = "<4 Zeichen a-z0-9>"
+github_oidc_subject_prefix = "repo:<owner>@<owner-id>/<repo>@<repo-id>"
+# databricks_account_id    = "<nach dem ersten Workspace>"

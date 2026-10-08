@@ -1,0 +1,5 @@
+databricks_account_id = "<account-id aus der Account Console>"
+admin_user_name       = "<dein UPN>"
+infra_sp_client_ids   = { dev = "<client-id>", tst = "<client-id>", prd = "<client-id>" }
+deploy_sp_client_ids  = { dev = "<client-id>", tst = "<client-id>", prd = "<client-id>" }
+# previous_metastore_owner = "<bisherige Owner-Gruppe, falls vorhanden>"

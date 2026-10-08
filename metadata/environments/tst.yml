@@ -1,0 +1,13 @@
+env: tst
+catalogs:
+  bronze: tst_bronze
+  silver: tst_silver
+  gold: tst_gold
+  platform: tst_platform
+schedules:
+  hourly:
+    cron: "0 0 * * * ?"
+    timezone: Europe/Berlin
+    pause_status: PAUSED            # PoC: überall pausiert (Kosten); Läufe manuell/über Trigger
+jobs:
+  performance_target: STANDARD         # STANDARD = günstiger Serverless-Modus (4-6 min Start)

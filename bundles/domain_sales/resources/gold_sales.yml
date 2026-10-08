@@ -1,0 +1,40 @@
+resources:
+  schemas:
+    sales:
+      catalog_name: ${var.env}_gold
+      name: sales
+      comment: Gold der Domäne Sales
+
+  jobs:
+    gold_sales:
+      name: gold_sales
+      description: Gold-Aggregationen der Domäne Sales (SQL auf dem Serverless Warehouse)
+      tags:
+        project: dbxpoc
+        env: ${var.env}
+        domain: sales
+      max_concurrent_runs: 1
+      trigger:
+        # Startet, wenn Silver aktualisiert wurde (in mode: development pausiert)
+        table_update:
+          table_names:
+            - ${var.env}_silver.salesdb.orders
+            - ${var.env}_silver.salesdb.customers
+          condition: ANY_UPDATED
+          wait_after_last_change_seconds: 60
+      parameters:
+        - name: silver_catalog
+          default: ${var.env}_silver
+        - name: gold_schema
+          default: ${resources.schemas.sales.catalog_name}.${resources.schemas.sales.name}
+      tasks:
+        - task_key: revenue_by_customer_month
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/revenue_by_customer_month.sql
+        - task_key: product_price_history
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/product_price_history.sql

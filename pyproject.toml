@@ -1,0 +1,44 @@
+# Root-Projekt: Dev-Tooling (Lint, Tests, Metadaten-Generator, Python for Bundles).
+# Das deploybare Paket liegt in src/dbxpoc_common (eigenes pyproject, eigenes Wheel).
+[project]
+name = "dbxpoc"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "dbxpoc-common",
+  "databricks-bundles==1.20.0",
+  "pyyaml>=6.0",
+  "jsonschema>=4.23",
+  "pytest>=8.4",
+  "ruff==0.16.10",
+  "pre-commit>=4.5",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+members = ["src/dbxpoc_common"]
+
+[tool.uv.sources]
+dbxpoc-common = { workspace = true }
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".venv", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Databricks-Notebooks: spark/dbutils/display kommen von der Runtime, Magic-Zeilen, lange SQL-Strings
+"bundles/**/src/*.py" = ["F821", "E501", "E402", "I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
