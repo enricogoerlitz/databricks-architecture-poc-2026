@@ -29,6 +29,12 @@ jobs:
       ARM_USE_OIDC: "true"
       ARM_USE_AZUREAD: "true"
       TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+      # Werte, die lokal das Makefile exportiert (terraform wird hier direkt aufgerufen)
+      TF_VAR_env: ${{ inputs.env }}
+      TF_VAR_prefix: ${{ vars.PREFIX }}
+      TF_VAR_suffix: ${{ vars.SUFFIX }}
+      TF_VAR_tfstate_resource_group: ${{ vars.TF_STATE_RG }}
+      TF_VAR_tfstate_storage_account: ${{ vars.TF_STATE_SA }}
       # CI-SPs haben keine Graph-Rechte: IDs kommen vorab aufgelöst als Secrets (Bootstrap)
       TF_VAR_deploy_sp_client_id: ${{ secrets.AZURE_CLIENT_ID_DEPLOY }}
       TF_VAR_azure_databricks_sp_object_id: ${{ secrets.AZURE_DATABRICKS_SP_OBJECT_ID }}
