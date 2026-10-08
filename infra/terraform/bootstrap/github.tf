@@ -95,3 +95,42 @@ resource "github_actions_environment_secret" "kv_admins" {
     azuread_group.env["${each.key}-ws-admins"].object_id,
   ])
 }
+
+# Branch-Schutz für main: nur per PR, CI muss grün sein, kein Force-Push/Löschen.
+# Solo-PoC: 0 Approvals nötig (Self-Merge erlaubt), aber Checks sind Pflicht.
+resource "github_repository_ruleset" "main" {
+  name        = "protect-main"
+  repository  = var.github_repository
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
+  }
+
+  rules {
+    deletion         = true
+    non_fast_forward = true
+
+    pull_request {
+      required_approving_review_count = 0
+      allowed_merge_methods           = ["squash"]
+    }
+
+    required_status_checks {
+      strict_required_status_checks_policy = true
+      required_check {
+        context = "python"
+      }
+      required_check {
+        context = "terraform"
+      }
+      required_check {
+        context = "secrets"
+      }
+    }
+  }
+}

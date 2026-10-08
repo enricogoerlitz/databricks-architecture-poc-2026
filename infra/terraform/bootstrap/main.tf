@@ -184,3 +184,24 @@ resource "azuread_group" "env" {
   # Der ausführende Mensch ist im PoC überall Mitglied; in tst/prd nur lesend durch die Grants.
   members = [data.azuread_client_config.current.object_id]
 }
+
+# Private Endpoints auf den Workspace-Root-Storage (Managed RG, entsteht erst mit dem Workspace)
+# brauchen die Approval-Aktion auf diesem Storage. Eng geschnittene Custom Role auf Subscription-
+# Scope. PoC-Kompromiss: eine Subscription für alle Stages; im Zielbild (Subscription je Stage)
+# ist der Scope automatisch auf die eigene Stage begrenzt.
+resource "azurerm_role_definition" "pe_approver" {
+  name        = "${var.prefix}-private-endpoint-approver"
+  scope       = data.azurerm_subscription.current.id
+  description = "Darf Private-Endpoint-Verbindungen auf Storage Accounts freigeben (Workspace-Root-Storage in Managed RGs)."
+  permissions {
+    actions = ["Microsoft.Storage/storageAccounts/PrivateEndpointConnectionsApproval/action"]
+  }
+  assignable_scopes = [data.azurerm_subscription.current.id]
+}
+
+resource "azurerm_role_assignment" "infra_pe_approver" {
+  for_each           = toset(var.environments)
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = azurerm_role_definition.pe_approver.role_definition_resource_id
+  principal_id       = azuread_service_principal.sp["${each.key}-infra"].object_id
+}

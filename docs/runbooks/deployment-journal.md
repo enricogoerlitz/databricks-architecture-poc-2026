@@ -183,3 +183,13 @@ Dadurch starten `infra-deploy` und `bundles-deploy` automatisch für dev.
   auf der RG macht einen SP in Workspaces mit Identity Federation **nicht** automatisch zum Admin.
   Lösung: `databricks_mws_permission_assignment` (ADMIN) für den Infra-SP über den
   Account-Provider. Alle Workspace-Ressourcen hängen über die Metastore-Zuweisung daran.
+- **Merge ohne Checks möglich:** PR #3 wurde gemerged, bevor die CI lief, weil kein Branch-Schutz
+  aktiv war. Jetzt gibt es `github_repository_ruleset` „protect-main“ (Bootstrap): nur Squash-PRs,
+  Checks `python`/`terraform`/`secrets` Pflicht, kein Force-Push und kein Löschen.
+- **tst-Infra: `LinkedAuthorizationFailed`:** Ein Private Endpoint auf den Workspace-Root-Storage
+  (Managed RG) braucht `Microsoft.Storage/storageAccounts/PrivateEndpointConnectionsApproval/action`
+  auf diesem Storage. Der Infra-SP hat Rechte nur auf seinen RGs. Lösung: eng geschnittene
+  Custom Role `dbxpoc-private-endpoint-approver` auf Subscription-Scope (Bootstrap). Im
+  Zielbild mit einer Subscription je Stage ist das automatisch stage-begrenzt.
+- **Freigaben automatisieren:** `gh api -X POST repos/<o>/<r>/actions/runs/<id>/pending_deployments -F "environment_ids[]=<id>" -f state=approved`
+  (Self-Review ist im Environment erlaubt).
