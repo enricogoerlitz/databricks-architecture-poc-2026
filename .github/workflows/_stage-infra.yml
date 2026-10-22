@@ -42,27 +42,34 @@ jobs:
       TF_VAR_kv_admin_object_ids: ${{ secrets.KV_ADMIN_OBJECT_IDS }}
     steps:
       - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.4"
+          terraform_wrapper: false
+      # Frisches OIDC-Login je Stack: Die GitHub-Client-Assertion ist nur 5 min gültig. Danach kann
+      # die Azure CLI keine neuen Tokens (z. B. für Databricks) mehr holen (AADSTS700024).
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - uses: hashicorp/setup-terraform@v3
+      - name: terraform azure
+        run: infra/scripts/ci-terraform-stack.sh azure
+      # Frisches OIDC-Login je Stack: Die GitHub-Client-Assertion ist nur 5 min gültig. Danach kann
+      # die Azure CLI keine neuen Tokens (z. B. für Databricks) mehr holen (AADSTS700024).
+      - uses: azure/login@v2
         with:
-          terraform_version: "1.14.4"
-          terraform_wrapper: false
-      - name: terraform (azure -> sources -> databricks)
-        run: |
-          set -euo pipefail
-          for stack in azure sources databricks; do
-            echo "::group::$stack plan"
-            make -s tf-init ENV=$ENV STACK=$stack >/dev/null
-            # Öffentliches Repo: nur die Zusammenfassung loggen, nicht den ganzen Plan
-            terraform -chdir=infra/terraform/stacks/$stack plan -input=false -no-color -out=tfplan > plan-$stack.txt \
-              || { grep -A20 -E "^(│ )?Error" plan-$stack.txt; exit 1; }
-            grep -E "^(Plan:|No changes)" plan-$stack.txt | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "::endgroup::"
-            echo "::group::$stack apply"
-            terraform -chdir=infra/terraform/stacks/$stack apply -input=false -no-color tfplan
-            echo "::endgroup::"
-          done
+          client-id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: terraform sources
+        run: infra/scripts/ci-terraform-stack.sh sources
+      # Frisches OIDC-Login je Stack: Die GitHub-Client-Assertion ist nur 5 min gültig. Danach kann
+      # die Azure CLI keine neuen Tokens (z. B. für Databricks) mehr holen (AADSTS700024).
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_INFRA }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: terraform databricks
+        run: infra/scripts/ci-terraform-stack.sh databricks

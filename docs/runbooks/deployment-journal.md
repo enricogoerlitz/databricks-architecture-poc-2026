@@ -234,3 +234,15 @@ bleiben bestehen. Die Workflows `infra-deploy` und `bundles-deploy` sind deaktiv
   `databricks account network-connectivity delete-network-connectivity-configuration` löschen.
 - **`sources` vor `databricks` abgebaut:** Der `databricks`-Stack liest `sources` per Remote
   State. Er nutzt jetzt `try()`, damit er auch danach noch zerstörbar ist.
+
+## 9. Neuaufbau 2026-10-22
+
+- **Gotcha `az login`:** Nach einem neuen Login war eine **andere Subscription** aktiv. Lokal
+  ist die PoC-Subscription deshalb in `.env.local` als `TF_VAR_subscription_id` gepinnt. Vor
+  `az`-Befehlen trotzdem `az account show` prüfen.
+- **Gotcha OIDC-Token-Laufzeit (`AADSTS700024`):** Die GitHub-Client-Assertion aus
+  `azure/login` ist nur 5 Minuten gültig. Bei einem echten Neuaufbau dauert `azure` ca. 10 min.
+  Danach kann die Azure CLI keine Tokens für neue Ressourcen (Databricks) mehr holen. Fix: vor
+  jedem Stack ein eigenes `azure/login` (`_stage-infra.yml`, Skript `ci-terraform-stack.sh`).
+  Beim ersten Aufbau fiel das nicht auf, weil die Stacks schon lokal angelegt waren und die CI
+  nur „No changes“ hatte.
